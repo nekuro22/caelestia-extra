@@ -1,78 +1,116 @@
 #!/usr/bin/env python3
 import os
-import gi
 import subprocess
+import tkinter as tk
+from tkinter import messagebox, ttk
 from pathlib import Path
+from PIL import Image, ImageTk
 
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GdkPixbuf
+# Deaktiviere Bombenschutz – nur für eigene Bilder sicher
+from PIL import Image as PILImage
+PILImage.MAX_IMAGE_PIXELS = None
 
-# Nutze aktuellen Benutzernamen (robuster als hartes "niklas")
-USERNAME = os.getenv("USER") or os.path.basename(os.path.expanduser("~"))
 WALLPAPER_DIR = Path.home() / "Pictures" / "Wallpapers"
+SUPPORTED_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 
 class WallpaperManager:
-    def __init__(self):
-        self.build_ui()
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Wallpaper Manager")
+        self.root.geometry("760x600")
+        self.root.minsize(500, 400)
 
-    def build_ui(self):
-        self.window = Gtk.Window(title="Wallpaper Manager")
-        self.window.set_default_size(900, 650)
-        self.window.set_border_width(12)
-        self.window.connect("destroy", Gtk.main_quit)
-
-        # Scrollbar
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        scrolled.set_shadow_type(Gtk.ShadowType.IN)
-
-        # FlowBox für Bilder
-        flowbox = Gtk.FlowBox()
-        flowbox.set_valign(Gtk.Align.START)
-        flowbox.set_max_children_per_line(6)
-        flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
-        flowbox.set_row_spacing(10)
-        flowbox.set_column_spacing(10)
-
-        if WALLPAPER_DIR.exists():
-            valid_extensions = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
-            for img_path in sorted(WALLPAPER_DIR.rglob("*")):
-                if img_path.suffix.lower() in valid_extensions:
-                    try:
-                        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                            str(img_path), 220, 160, True
-                        )
-                        image = Gtk.Image.new_from_pixbuf(pixbuf)
-                        button = Gtk.Button()
-                        button.set_image(image)
-                        button.set_always_show_image(True)
-                        button.set_relief(Gtk.ReliefStyle.NONE)
-                        button.connect("clicked", self.set_wallpaper, str(img_path))
-                        flowbox.add(button)
-                    except Exception:
-                        continue
-
-        scrolled.add(flowbox)
-        self.window.add(scrolled)
-
-    def set_wallpaper(self, button, filepath):
+        # Modernes Theme, wenn verfügbar
         try:
-            subprocess.run(["caelestia", "wallpaper", "-f", filepath], check=True)
-        except subprocess.CalledProcessError:
-            dialog = Gtk.MessageDialog(
-                transient_for=self.window,
-                message_type=Gtk.MessageType.ERROR,
-                buttons=Gtk.ButtonsType.OK,
-                text="Fehler beim Setzen des Hintergrunds",
-                secondary_text=f"Konnte '{filepath}' nicht mit 'caelestia' setzen."
-            )
-            dialog.run()
-            dialog.destroy()
+            self.root.tk.call("source", "/usr/share/tk8.6/ttk/fonts.tcl")
+            self.root.tk.call("set", "tk::classic::photo", "false")
+        except:
+            pass
 
-    def run(self):
-        self.window.show_all()
-        Gtk.main()
+        style = ttk.Style()
+        try:
+            style.theme_use('clam')  # moderner als 'default'
+        except:
+            pass
+        style.configure("TLabel", font=("Segoe UI", 10))
+        style.configure("TButton", font=("Segoe UI", 10))
+
+        # Header
+        header = ttk.Label(root, text="🖼️ Wallpaper Manager", font=("Segoe UI", 14, "bold"))
+        header.pack(pady=(12, 6))
+
+        hint = ttk.Label(root, text="Klicke auf ein Bild, um es mit Caelestia zu setzen", foreground="#555")
+        hint.pack(pady=(0, 12))
+
+        # Listbox mit Scrollbar
+        frame = ttk.Frame(root)
+        frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+
+        self.listbox = tk.Listbox(
+            frame,
+            font=("Monospace", 10),
+            activestyle="none",
+            selectbackground="#4a86e8",
+            selectforeground="white",
+            highlightthickness=0,
+            bd=1,
+            relief="solid"
+        )
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=self.listbox.yview)
+        self.listbox.config(yscrollcommand=scrollbar.set)
+
+        self.listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        self.listbox.bind("<Double-1>", self.on_double_click)
+        self.listbox.bind("<Return>", self.on_double_click)
+
+        self.load_filenames()
+
+    def load_filenames(self):
+        if not WALLPAPER_DIR.exists():
+            self.listbox.insert("end", f"[FEHLER] Ordner nicht gefunden: {WALLPAPER_DIR}")
+            self.listbox.itemconfig(0, {"fg": "red"})
+            return
+
+        image_files = sorted([
+            f for f in WALLPAPER_DIR.rglob("*")
+            if f.is_file() and f.suffix.lower() in SUPPORTED_EXTS
+        ])
+
+        if not image_files:
+            self.listbox.insert("end", "[INFO] Keine Bilder in ~/Pictures/Wallpapers/")
+            self.listbox.itemconfig(0, {"fg": "gray"})
+            return
+
+        for img in image_files:
+            self.listbox.insert("end", img.name)
+            # Optional: Icon hinzufügen – aber das verlangsamt
+        self.root.after(100, lambda: self.listbox.focus_set())
+
+    def on_double_click(self, event=None):
+        selection = self.listbox.curselection()
+        if not selection:
+            return
+        filename = self.listbox.get(selection[0])
+        if filename.startswith("["):
+            return  # Info-Zeile
+
+        filepath = WALLPAPER_DIR / filename
+        if not filepath.exists():
+            messagebox.showerror("Fehler", "Datei nicht gefunden!")
+            return
+
+        try:
+            subprocess.run(["caelestia", "wallpaper", "-f", str(filepath)], check=True)
+            self.root.after(100, self.root.destroy)  # Optional: Schließen nach Setzen
+        except FileNotFoundError:
+            messagebox.showerror("Fehlt", "Caelestia nicht gefunden!")
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("Fehler", f"Konnte Wallpaper nicht setzen:\n{e}")
 
 if __name__ == "__main__":
-    app = WallpaperManager()
-    app.run()
+    root = tk.Tk()
+    root.option_add("*tearOff", False)  # Keine Menü-Trennleisten
+    app = WallpaperManager(root)
+    root.mainloop()
