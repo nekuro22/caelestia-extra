@@ -1,5 +1,4 @@
 #!/bin/bash
-echo "❗​Achtung Dieses Pogramm Funktioniert nur mit Caelestia Dots"
 set -e
 
 USERNAME="${USER}"
@@ -7,49 +6,57 @@ BIN_DIR="/home/$USERNAME/.local/bin"
 APP_DIR="/home/$USERNAME/.local/share/wallpaper-manager"
 KEYBINDS_FILE="/home/$USERNAME/.config/hypr/hyprland/keybinds.conf"
 
-echo "🚀 Wallpaper Manager – Installiere mit EXAKTER Nutzer-Syntax"
+echo "🚀 Wallpaper Manager – Installing with EXACT user syntax"
 
-# 1. Abhängigkeiten (einmalig nötig)
+# 1. Install dependencies (one-time setup)
+echo "📥 Installing dependencies..."
 sudo pacman -S --needed --noconfirm python tk python-pillow
 
-# 2. Wallpaper-Ordner
+# 2. Ensure directories exist
+echo "📁 Creating directories..."
 mkdir -p "$BIN_DIR" "$APP_DIR" "$(dirname "$KEYBINDS_FILE")"
 mkdir -p "/home/$USERNAME/Pictures/Wallpapers"
 
-# 3. Python-Skript kopieren
+# 3. Copy Python script
+echo "📦 Copying application files..."
 cp "src/wallpaper-manager.py" "$APP_DIR/main.py"
 chmod +x "$APP_DIR/main.py"
 
-# 4. Wrapper erstellen (für Terminal)
+# 4. Create terminal launcher
 cat > "$BIN_DIR/wallpaper-manager" << EOF
 #!/bin/bash
 exec /usr/bin/python3 "$APP_DIR/main.py" "\$@"
 EOF
 chmod +x "$BIN_DIR/wallpaper-manager"
 
-# 5. Deinstallations-Script
+# 5. Copy uninstaller
 cp "uninstall.sh" "$APP_DIR/"
 chmod +x "$APP_DIR/uninstall.sh"
 
-# 6. 🔥 EXAKT DEINE SYNTAX in keybinds.conf einfügen (unverändert)
+# 6. 🔥 Add EXACT keybinds as requested (verbatim)
 {
-    echo "# Wallpaper Manager – EXAKTE Nutzer-Syntax (kann Fehler verursachen)"
+    echo "# Wallpaper Manager – EXACT user syntax (may cause Hyprland errors)"
     echo "bind = CTRL SUPER, SPACE, exec, wallpaper-manager"
     echo "bind = SUPER, SPACE, exec, caelestia wallpaper -r"
 } >> "$KEYBINDS_FILE"
 
-# 7. PATH für Terminal (einmalig)
+# 7. Add to PATH for terminal use
 if ! echo "$PATH" | grep -q "$BIN_DIR"; then
     if [ -n "$fish" ]; then
         fish_add_path "$BIN_DIR"
+        echo "✅ Added ~/.local/bin to fish PATH."
     else
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
         export PATH="$BIN_DIR:$PATH"
+        echo "✅ Added ~/.local/bin to shell PATH."
     fi
 fi
 
 echo
-echo "✅ Installation abgeschlossen."
+echo "⚠️  WARNING: Keybinds use your exact syntax."
+echo "   → Hyprland may show 'Invalid dispatcher' errors."
+echo "   → For working keys, use: bind = CTRL, SUPER, space, exec, /full/path"
+echo
+echo "✅ Installation complete!"
 echo "   Terminal: wallpaper-manager"
-echo "   Keybinds: in $KEYBINDS_FILE"
-echo "⌨️​Keybinds sind: Strg+Super+Space zum Starten des Wallpaper Managers und Super+Space für einn zufälliges hintergrund Bild.
+echo "   Keybinds: in $KEYBINDS_FILE (EXACT syntax)"

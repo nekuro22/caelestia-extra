@@ -16,7 +16,7 @@ SUPPORTED_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-# 📏 Feste Fenstergrößen
+# 📏 Fixed window sizes
 SIZES = {
     "small":  (600, 450),
     "medium": (800, 600),
@@ -30,7 +30,7 @@ class WallpaperManager:
         self.root.geometry(f"{SIZES['medium'][0]}x{SIZES['medium'][1]}")
         self.root.minsize(550, 400)
 
-        # 🎨 Farbmodus
+        # 🎨 Detect dark mode
         self.is_dark_mode = self.detect_dark_mode()
         self.apply_theme()
 
@@ -44,16 +44,16 @@ class WallpaperManager:
 
         hint = ttk.Label(
             root,
-            text="Klick = Auswählen | Leertaste = Favorit | Doppelklick = Setzen | T = Größe wechseln",
+            text="Click = Select | Space = Toggle Favorite | Double-click = Set | T = Cycle Size",
             foreground="#aaa" if self.is_dark_mode else "#555"
         )
         hint.pack(pady=(0, 10))
 
-        # Hauptframe
+        # Main frame
         main_frame = ttk.Frame(root)
         main_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
-        # Liste
+        # List
         list_frame = ttk.Frame(main_frame)
         list_frame.pack(side="left", fill="y", padx=(0, 12))
 
@@ -82,13 +82,13 @@ class WallpaperManager:
         self.listbox.bind("<space>", self.toggle_favorite)
         self.listbox.bind("<KeyRelease>", self.on_key_release)
 
-        # Vorschau
+        # Preview
         preview_frame = tk.Frame(main_frame, bg=self.bg_color)
         preview_frame.pack(side="right", fill="both", expand=True)
 
         self.preview_label = tk.Label(
             preview_frame,
-            text="Kein Bild ausgewählt",
+            text="No image selected",
             anchor="center",
             bg=self.bg_color,
             fg=self.text_fg,
@@ -96,7 +96,7 @@ class WallpaperManager:
         )
         self.preview_label.pack(expand=True, padx=15, pady=15)
 
-        # Tastenkürzel für Größenwechsel
+        # Size cycling
         self.root.bind("<t>", self.cycle_size)
         self.root.bind("<T>", self.cycle_size)
 
@@ -173,13 +173,13 @@ class WallpaperManager:
         self.listbox.delete(0, "end")
 
         if fav_files:
-            self.listbox.insert("end", "🌟 FAVORITEN")
+            self.listbox.insert("end", "🌟 FAVORITES")
             self.listbox.itemconfig(self.listbox.size() - 1, {"fg": "#FFD700" if self.is_dark_mode else "#D4AF37"})
             for f in fav_files:
                 self.listbox.insert("end", f"⭐ {f.name}")
             self.listbox.insert("end", "")
 
-        self.listbox.insert("end", "📚 ALLE WALLPAPER")
+        self.listbox.insert("end", "📚 ALL WALLPAPERS")
         self.listbox.itemconfig(self.listbox.size() - 1, {"fg": "#888" if self.is_dark_mode else "#666"})
         for f in other_files:
             self.listbox.insert("end", f.name)
@@ -191,7 +191,7 @@ class WallpaperManager:
         if index >= len(lines):
             return None
         line = lines[index]
-        if line in ("", "🌟 FAVORITEN", "📚 ALLE WALLPAPER"):
+        if line in ("", "🌟 FAVORITES", "📚 ALL WALLPAPERS"):
             return None
         filename = line.replace("⭐ ", "")
         for path in self.favorite_paths:
@@ -207,7 +207,7 @@ class WallpaperManager:
         if index < 0 or index >= self.listbox.size():
             return
         line = self.listbox.get(index)
-        if line in ("", "🌟 FAVORITEN", "📚 ALLE WALLPAPER"):
+        if line in ("", "🌟 FAVORITES", "📚 ALL WALLPAPERS"):
             return
         self.listbox.selection_clear(0, "end")
         self.listbox.selection_set(index)
@@ -222,7 +222,7 @@ class WallpaperManager:
 
     def show_preview(self):
         if not self.selected_path or not self.selected_path.exists():
-            self.preview_label.config(image="", text="Nicht gefunden", bg=self.bg_color, fg=self.text_fg)
+            self.preview_label.config(image="", text="File not found", bg=self.bg_color, fg=self.text_fg)
             self.current_image_ref = None
             return
 
@@ -257,7 +257,7 @@ class WallpaperManager:
             self.preview_label.image = photo
             self.current_image_ref = photo
         except Exception as e:
-            self.preview_label.config(image="", text=f"Fehler:\n{str(e)[:50]}", bg=self.bg_color, fg=self.text_fg)
+            self.preview_label.config(image="", text=f"Error:\n{str(e)[:50]}", bg=self.bg_color, fg=self.text_fg)
             self.current_image_ref = None
 
     def toggle_favorite(self, event=None):
@@ -285,7 +285,7 @@ class WallpaperManager:
         lines = self.listbox.get(0, "end")
         for i, line in enumerate(lines):
             clean_name = line.replace("⭐ ", "")
-            if line in ("", "🌟 FAVORITEN", "📚 ALLE WALLPAPER"):
+            if line in ("", "🌟 FAVORITES", "📚 ALL WALLPAPERS"):
                 continue
             for p in self.favorite_paths:
                 if Path(p).name == clean_name:
@@ -305,16 +305,16 @@ class WallpaperManager:
             return
         path = self.get_real_path_from_index(sel[0])
         if not path or not path.exists():
-            messagebox.showerror("Fehler", "Datei nicht gefunden!")
+            messagebox.showerror("Error", "File not found!")
             return
 
         try:
             subprocess.run(["caelestia", "wallpaper", "-f", str(path)], check=True)
             self.root.after(100, self.root.destroy)
         except FileNotFoundError:
-            messagebox.showerror("Fehlt", "Caelestia nicht gefunden!")
+            messagebox.showerror("Error", "Caelestia not found!")
         except subprocess.CalledProcessError as e:
-            messagebox.showerror("Fehler", f"Konnte nicht setzen:\n{e}")
+            messagebox.showerror("Error", f"Failed to set wallpaper:\n{e}")
 
 if __name__ == "__main__":
     root = tk.Tk()

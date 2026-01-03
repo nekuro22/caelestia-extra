@@ -6,17 +6,18 @@ BIN_DIR="/home/$USERNAME/.local/bin"
 APP_DIR="/home/$USERNAME/.local/share/wallpaper-manager"
 KEYBINDS_FILE="/home/$USERNAME/.config/hypr/hyprland/keybinds.conf"
 
-echo "🗑️  Entferne Wallpaper Manager..."
+echo "🗑️  Removing Wallpaper Manager..."
 
+# Remove files
 rm -f "$BIN_DIR/wallpaper-manager"
 rm -rf "$APP_DIR"
 
-# Entferne exakt deine Zeilen
+# Remove exact keybind lines
 if [ -f "$KEYBINDS_FILE" ]; then
     sed -i '/CTRL SUPER, SPACE, exec, wallpaper-manager/d' "$KEYBINDS_FILE"
     sed -i '/SUPER, SPACE, exec, caelestia wallpaper -r/d' "$KEYBINDS_FILE"
-    sed -i '/# Wallpaper Manager – EXAKTE Nutzer-Syntax/d' "$KEYBINDS_FILE"
-    echo "✅ Deine exakte Syntax aus keybinds.conf entfernt."
+    sed -i '/# Wallpaper Manager – EXACT user syntax/d' "$KEYBINDS_FILE"
+    echo "✅ Removed your exact syntax from keybinds.conf."
 fi
 
-echo "✅ Alles bereinigt."
+echo "✅ Cleanup complete. Goodbye!"
