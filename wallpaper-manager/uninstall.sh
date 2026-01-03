@@ -1,16 +1,22 @@
 #!/bin/bash
 set -e
 
+USERNAME="${USER}"
+BIN_DIR="/home/$USERNAME/.local/bin"
+APP_DIR="/home/$USERNAME/.local/share/wallpaper-manager"
+KEYBINDS_FILE="/home/$USERNAME/.config/hypr/hyprland/keybinds.conf"
+
 echo "🗑️  Entferne Wallpaper Manager..."
 
-rm -f "$HOME/.local/bin/wallpaper-manager"
-rm -rf "$HOME/.local/share/wallpaper-manager"
-rm -f "$HOME/.local/share/applications/wallpaper-manager.desktop"
+rm -f "$BIN_DIR/wallpaper-manager"
+rm -rf "$APP_DIR"
 
-# Desktop-Datenbank aktualisieren (optional)
-if command -v update-desktop-database &>/dev/null; then
-    update-desktop-database "$HOME/.local/share/applications" &>/dev/null || true
+# Entferne exakt deine Zeilen
+if [ -f "$KEYBINDS_FILE" ]; then
+    sed -i '/CTRL SUPER, SPACE, exec, wallpaper-manager/d' "$KEYBINDS_FILE"
+    sed -i '/SUPER, SPACE, exec, caelestia wallpaper -r/d' "$KEYBINDS_FILE"
+    sed -i '/# Wallpaper Manager – EXAKTE Nutzer-Syntax/d' "$KEYBINDS_FILE"
+    echo "✅ Deine exakte Syntax aus keybinds.conf entfernt."
 fi
 
-echo "✅ Alles entfernt."
-echo "👋 Tschüss!"
+echo "✅ Alles bereinigt."

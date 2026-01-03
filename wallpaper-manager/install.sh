@@ -1,100 +1,55 @@
 #!/bin/bash
+echo "❗​Achtung Dieses Pogramm Funktioniert nur mit Caelestia Dots"
 set -e
 
-# === Nur Arch-basierte Systeme erlauben ===
-if ! grep -q '^ID.*=.*arch' /etc/os-release && ! grep -q -i 'manjaro\|cachy\|endeavouros\|garuda\|arco\|reborn\|archcraft' /etc/os-release; then
-    echo "❌ Dieses Skript läuft nur auf Arch-basierten Distributionen."
-    echo "   Erkannt: $(grep PRETTY_NAME /etc/os-release | cut -d= -f2 | tr -d '"')"
-    exit 1
-fi
+USERNAME="${USER}"
+BIN_DIR="/home/$USERNAME/.local/bin"
+APP_DIR="/home/$USERNAME/.local/share/wallpaper-manager"
+KEYBINDS_FILE="/home/$USERNAME/.config/hypr/hyprland/keybinds.conf"
 
-echo "✅ Arch-basiertes System erkannt."
+echo "🚀 Wallpaper Manager – Installiere mit EXAKTER Nutzer-Syntax"
 
-# === Caelestia-Abfrage ===
-if command -v caelestia &>/dev/null; then
-    echo "✨ Caelestia gefunden – Wallpaper-Wechsel wird funktionieren."
-else
-    echo
-    echo "❓ Caelestia (z. B. aus Caelestia.dots) wurde NICHT gefunden."
-    read -p "Ist Caelestia bereits installiert oder wirst du es später manuell installieren? (y/n): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "⚠️  Ohne Caelestia kann der Hintergrund nicht gewechselt werden."
-        read -p "Trotzdem fortfahren? (y/n): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "Abbruch."
-            exit 0
-        fi
-    fi
-fi
+# 1. Abhängigkeiten (einmalig nötig)
+sudo pacman -S --needed --noconfirm python tk python-pillow
 
-# === Pfade ===
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN_DIR="$HOME/.local/bin"
-APP_DIR="$HOME/.local/share/wallpaper-manager"
-DESKTOP_DIR="$HOME/.local/share/applications"
+# 2. Wallpaper-Ordner
+mkdir -p "$BIN_DIR" "$APP_DIR" "$(dirname "$KEYBINDS_FILE")"
+mkdir -p "/home/$USERNAME/Pictures/Wallpapers"
 
-mkdir -p "$BIN_DIR" "$APP_DIR" "$DESKTOP_DIR"
-
-# === Abhängigkeiten installieren ===
-echo "📥 Installiere benötigte Pakete..."
-# Füge 'tk' zur Liste hinzu
-missing=()
-for pkg in python tk python-pillow; do
-    if ! pacman -Q "$pkg" &>/dev/null; then
-        missing+=("$pkg")
-    fi
-done
-
-# Python ist meist schon da, aber sicherheitshalber
-if ! command -v python3 &>/dev/null; then
-    echo "Python3 fehlt – wird installiert..."
-    sudo pacman -S --needed --noconfirm python
-fi
-
-# Pillow für Bildvorschau
-if ! python3 -c "import PIL" &>/dev/null; then
-    echo "Pillow (python-pillow) fehlt – wird installiert..."
-    sudo pacman -S --needed --noconfirm python-pillow
-fi
-
-# === Dateien kopieren ===
-echo "📦 Installiere Wallpaper Manager..."
-
-# Python-Skript
-cp "$SCRIPT_DIR/src/wallpaper-manager.py" "$APP_DIR/main.py"
+# 3. Python-Skript kopieren
+cp "src/wallpaper-manager.py" "$APP_DIR/main.py"
 chmod +x "$APP_DIR/main.py"
 
-# Starter im PATH
+# 4. Wrapper erstellen (für Terminal)
 cat > "$BIN_DIR/wallpaper-manager" << EOF
 #!/bin/bash
-exec python3 "$APP_DIR/main.py" "\$@"
+exec /usr/bin/python3 "$APP_DIR/main.py" "\$@"
 EOF
 chmod +x "$BIN_DIR/wallpaper-manager"
 
-# Desktop-Datei (für Menü)
-cp "$SCRIPT_DIR/wallpaper-manager.desktop" "$DESKTOP_DIR/"
-chmod +x "$DESKTOP_DIR/wallpaper-manager.desktop"
+# 5. Deinstallations-Script
+cp "uninstall.sh" "$APP_DIR/"
+chmod +x "$APP_DIR/uninstall.sh"
 
-# === PATH-Hinweis für fish/bash/zsh ===
-if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
-    echo
-    echo "⚠️  ~/.local/bin ist nicht im PATH."
+# 6. 🔥 EXAKT DEINE SYNTAX in keybinds.conf einfügen (unverändert)
+{
+    echo "# Wallpaper Manager – EXAKTE Nutzer-Syntax (kann Fehler verursachen)"
+    echo "bind = CTRL SUPER, SPACE, exec, wallpaper-manager"
+    echo "bind = SUPER, SPACE, exec, caelestia wallpaper -r"
+} >> "$KEYBINDS_FILE"
+
+# 7. PATH für Terminal (einmalig)
+if ! echo "$PATH" | grep -q "$BIN_DIR"; then
     if [ -n "$fish" ]; then
-        echo "   Führe aus: fish_add_path ~/.local/bin"
+        fish_add_path "$BIN_DIR"
     else
-        echo "   Füge zu ~/.bashrc oder ~/.zshrc hinzu:"
-        echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+        export PATH="$BIN_DIR:$PATH"
     fi
 fi
 
-# === Deinstallations-Script bereitstellen ===
-cp "$SCRIPT_DIR/uninstall.sh" "$APP_DIR/"
-chmod +x "$APP_DIR/uninstall.sh"
 echo
-echo "ℹ️  Deinstallieren mit: ~/.local/share/wallpaper-manager/uninstall.sh"
-
-echo
-echo "✅ Installation abgeschlossen!"
-echo "Starte mit: wallpaper-manager"
+echo "✅ Installation abgeschlossen."
+echo "   Terminal: wallpaper-manager"
+echo "   Keybinds: in $KEYBINDS_FILE"
+echo "⌨️​Keybinds sind: Strg+Super+Space zum Starten des Wallpaper Managers und Super+Space für einn zufälliges hintergrund Bild.

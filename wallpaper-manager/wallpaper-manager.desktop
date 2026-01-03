@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Wallpaper Manager
-Comment=Wähle Wallpapers mit einem Klick
+Comment=Wähle Wallpapers und setze sie mit Caelestia
 Exec=wallpaper-manager
 Icon=user-desktop
 Terminal=false
