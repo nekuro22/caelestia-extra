@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Wallpaper Manager
+Comment=Verwalte und setze Hintergrundbilder mit einem Klick
+Exec=wallpaper-manager
+Icon=user-desktop
+Terminal=false
+Type=Application
+Categories=Utility;Graphics;System;
+StartupNotify=true
