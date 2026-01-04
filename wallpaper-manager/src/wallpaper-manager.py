@@ -16,11 +16,10 @@ SUPPORTED_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-# 📏 Fixed window sizes
 SIZES = {
-    "small":  (600, 450),
-    "medium": (800, 600),
-    "large":  (1080, 720)
+    "small":  (600, 480),
+    "medium": (800, 620),
+    "large":  (1080, 740)
 }
 
 class WallpaperManager:
@@ -28,28 +27,33 @@ class WallpaperManager:
         self.root = root
         self.root.title("Wallpaper Manager")
         self.root.geometry(f"{SIZES['medium'][0]}x{SIZES['medium'][1]}")
-        self.root.minsize(550, 400)
+        self.root.minsize(550, 420)
 
-        # 🎨 Detect dark mode
         self.is_dark_mode = self.detect_dark_mode()
         self.apply_theme()
 
         # Header
-        self.header = ttk.Label(
-            root,
-            text="🖼️ Wallpaper Manager",
-            font=("Sans", 14, "bold")
-        )
-        self.header.pack(pady=(12, 6))
+        header = ttk.Label(root, text="🖼️ Wallpaper Manager", font=("Sans", 14, "bold"))
+        header.pack(pady=(12, 6))
 
         hint = ttk.Label(
             root,
-            text="Click = Select | Space = Toggle Favorite | Double-click = Set | T = Cycle Size",
+            text="Click = Select | Space = Add to Favorites | Backspace = Remove | Double-click = Set",
             foreground="#aaa" if self.is_dark_mode else "#555"
         )
         hint.pack(pady=(0, 10))
 
-        # Main frame
+        # Add current wallpaper button
+        btn_frame = ttk.Frame(root)
+        btn_frame.pack(pady=(0, 8))
+        self.add_current_btn = ttk.Button(
+            btn_frame,
+            text="➕ Add Current Wallpaper to Favorites",
+            command=self.add_current_to_favorites
+        )
+        self.add_current_btn.pack()
+
+        # Main area
         main_frame = ttk.Frame(root)
         main_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
@@ -79,7 +83,8 @@ class WallpaperManager:
         self.listbox.bind("<Button-1>", self.on_click_select)
         self.listbox.bind("<Double-1>", self.on_double_click)
         self.listbox.bind("<Return>", self.on_double_click)
-        self.listbox.bind("<space>", self.toggle_favorite)
+        self.listbox.bind("<space>", self.add_to_favorites)        # Space = immer hinzufügen
+        self.listbox.bind("<BackSpace>", self.remove_from_favorites)  # Backspace = entfernen
         self.listbox.bind("<KeyRelease>", self.on_key_release)
 
         # Preview
@@ -96,7 +101,6 @@ class WallpaperManager:
         )
         self.preview_label.pack(expand=True, padx=15, pady=15)
 
-        # Size cycling
         self.root.bind("<t>", self.cycle_size)
         self.root.bind("<T>", self.cycle_size)
 
@@ -147,6 +151,7 @@ class WallpaperManager:
             pass
         style.configure("TLabel", foreground=self.text_fg, background=self.bg_color)
         style.configure("TFrame", background=self.bg_color)
+        style.configure("TButton", foreground=self.text_fg, background=self.entry_bg)
 
     def load_favorites(self):
         if FAVORITES_FILE.exists():
@@ -260,7 +265,7 @@ class WallpaperManager:
             self.preview_label.config(image="", text=f"Error:\n{str(e)[:50]}", bg=self.bg_color, fg=self.text_fg)
             self.current_image_ref = None
 
-    def toggle_favorite(self, event=None):
+    def add_to_favorites(self, event=None):
         sel = self.listbox.curselection()
         if not sel:
             return "break"
@@ -269,16 +274,27 @@ class WallpaperManager:
             return "break"
 
         path_str = str(path)
-        was_fav = path_str in self.favorite_paths
-
-        if was_fav:
-            self.favorite_paths.discard(path_str)
-        else:
+        if path_str not in self.favorite_paths:
             self.favorite_paths.add(path_str)
+            self.save_favorites()
+            self.load_filenames()
+            self.root.after(100, lambda: self.reselect_after_reload(path_str))
+        return "break"
 
-        self.save_favorites()
-        self.load_filenames()
-        self.root.after(100, lambda: self.reselect_after_reload(path_str))
+    def remove_from_favorites(self, event=None):
+        sel = self.listbox.curselection()
+        if not sel:
+            return "break"
+        path = self.get_real_path_from_index(sel[0])
+        if not path or not path.exists():
+            return "break"
+
+        path_str = str(path)
+        if path_str in self.favorite_paths:
+            self.favorite_paths.discard(path_str)
+            self.save_favorites()
+            self.load_filenames()
+            self.root.after(100, lambda: self.reselect_after_reload(path_str))
         return "break"
 
     def reselect_after_reload(self, target_path):
@@ -315,6 +331,33 @@ class WallpaperManager:
             messagebox.showerror("Error", "Caelestia not found!")
         except subprocess.CalledProcessError as e:
             messagebox.showerror("Error", f"Failed to set wallpaper:\n{e}")
+
+    def add_current_to_favorites(self):
+        try:
+            result = subprocess.run(["caelestia", "wallpaper"], capture_output=True, text=True, check=True)
+            current_path = result.stdout.strip()
+            if not current_path:
+                messagebox.showinfo("Info", "No current wallpaper detected.")
+                return
+
+            wallpaper_path = Path(current_path)
+            if not wallpaper_path.exists():
+                messagebox.showerror("Error", f"Current wallpaper file does not exist:\n{current_path}")
+                return
+
+            # Add to favorites
+            path_str = str(wallpaper_path)
+            if path_str in self.favorite_paths:
+                messagebox.showinfo("Info", "Already in favorites!")
+            else:
+                self.favorite_paths.add(path_str)
+                self.save_favorites()
+                self.load_filenames()
+                messagebox.showinfo("Success", "Added current wallpaper to favorites!")
+        except subprocess.CalledProcessError:
+            messagebox.showerror("Error", "Failed to get current wallpaper from Caelestia.")
+        except FileNotFoundError:
+            messagebox.showerror("Error", "Caelestia not found!")
 
 if __name__ == "__main__":
     root = tk.Tk()
