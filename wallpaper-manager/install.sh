@@ -8,9 +8,9 @@ KEYBINDS_FILE="/home/$USERNAME/.config/hypr/hyprland/keybinds.conf"
 
 echo "🚀 Wallpaper Manager – Installing with EXACT user syntax"
 
-# 1. Install dependencies (one-time setup)
+# 1. Install dependencies (one-time setup) – IN ENGLISH
 echo "📥 Installing dependencies..."
-sudo pacman -S --needed --noconfirm python tk python-pillow
+sudo env LANG=C pacman -S --needed --noconfirm python tk python-pillow
 
 # 2. Ensure directories exist
 echo "📁 Creating directories..."
@@ -36,7 +36,8 @@ chmod +x "$APP_DIR/uninstall.sh"
 # 6. 🔥 Add EXACT keybinds as requested (verbatim)
 {
     echo "# Wallpaper Manager – EXACT user syntax (may cause Hyprland errors)"
-    echo "bind = CTRL SUPER, SPACE, exec, wallpaper-manager"
+    echo "bind = CTRL SUPER, SPACE, exec, sh -c '$BIN_DIR/wallpaper-manager'"
+
     echo "bind = SUPER, SPACE, exec, caelestia wallpaper -r"
 } >> "$KEYBINDS_FILE"
 
